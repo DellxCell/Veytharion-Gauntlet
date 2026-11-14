@@ -87,7 +87,7 @@ Three of Rex's Void Claw pedestals stand in the arena, as in Rex's own boss figh
 
 1. Download **[Veytharions-Gauntlet-1.1.zip](https://github.com/DellxCell/Veytharion-Gauntlet/releases/download/v1.1/Veytharions-Gauntlet-1.1.zip)** from the [latest release](https://github.com/DellxCell/Veytharion-Gauntlet/releases/latest).
 2. Close Black Ops 7 and KronosLauncher completely.
-3. Extract the zip into `C:\Kronos\cod25\kronos\mods`. You should end up with `C:\Kronos\cod25\kronos\modsex_arena\mod.json`, plus the `scripts`, `lua` and `images` folders next to it.
+3. Extract the zip into `C:\Kronos\cod25\kronos\mods`. You should end up with `C:\Kronos\cod25\kronos\mods\rex_arena\mod.json`, plus the `scripts`, `lua` and `images` folders next to it.
 4. Launch the game through Kronos as usual.
 
 The release also lists the mod's files one by one, without folders. Those are for the Kronos Workshop, which puts each file in its folder for you. To install by hand, use the zip.
