@@ -96,6 +96,6 @@ Three of Rex's Void Claw pedestals stand in the arena, as in Rex's own boss figh
 
 - Avoid Save & Quit in the gauntlet. Saving and resuming in the arena hasn't been tested.
 - Now and then the game crashes while the match is loading in. Start the match again.
-- On some launches the drop-in can stop on a white screen or freeze after landing. Restart the game and start the match again.
+- **Carry-forward crash:** with **Carry-forward** turned on in KronosLauncher, some game launches start badly because Kronos' carry-forward weapon setup doesn't finish loading. On those launches the drop-in can freeze on the white screen or right after landing, and the game can then crash. If that happens, close the game completely, launch it again through Kronos, and start the match again. Turning carry-forward off avoids these bad launches, but the game can still crash now and then while the match loads.
 - Squad play hasn't been fully tested yet.
 - The Mystery Box wonder weapons are new in 1.1. If you already hold the Necrofluid Gauntlet, the box can give it to you again.
