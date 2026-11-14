@@ -3,7 +3,7 @@
 **A boss arena Survival mode for Black Ops 7 Zombies on Rex Infernus (Kronos)**
 by DellxCell (The Hamster) · version 1.1
 
-![Z-Rex and the Guardian in the arena](Screenshots/z-rex-and-guardian.jpg)
+![The arena](Screenshots/arena.jpg)
 
 Drop into the boss arena of Rex Infernus and survive. Jump straight to a boss round from the pedestals, beat each boss for an upgrade that lasts the rest of the match, and take on Z-Rex, the Guardian, Caltheris and the Warden together at round 999.
 
@@ -78,8 +78,6 @@ Three of Rex's Void Claw pedestals stand in the arena, as in Rex's own boss figh
 - **Clean screen:** the minimap and the objective tracker are hidden.
 - **Custom loading intro:** four pictures of the arena pan across the loading screen. The lobby card and loading screen show Veytharion's Gauntlet, Survival.
 - Rex's own zombies and special rounds.
-
-![The arena](Screenshots/arena.jpg)
 
 ## Install
 
