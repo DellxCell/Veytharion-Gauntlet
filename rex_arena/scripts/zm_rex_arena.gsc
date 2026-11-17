@@ -1,4 +1,4 @@
-// Rex Arena 1.1: Rex Infernus (zm_sat_scarab) arena match, written for Rex.
+// Rex Arena 1.1.3: Rex Infernus (zm_sat_scarab) arena match, written for Rex.
 // Ashes Arena 0.4.43 is the reference; nothing here is shared with it at run
 // time (own ra_ names, own "rex_arena" store, own notifies).
 // Start: the mod Lua (lua/zm_rex_arena_post.lua) starts Rex round-based with
@@ -224,6 +224,12 @@
 // Necrofluid Gauntlet lists in the arena (ra_box_probe); the box itself is unchanged.
 // 1.1: wonder weapons in the arena box: Rex's wonder swap off, so its wonder tier rolls Ray Gun,
 // Ray Gun Mark II and Rex's wonder weapon; the Necrofluid Gauntlet on 1 in 4 of those (ra_box_wonder).
+// 1.1.1: records only: what each arena box spin gives (Ray Gun, Ray Gun Mark II, Rex's own wonder
+// weapon, Necrofluid Gauntlet, another wonder weapon or a normal one) as box_seen (ra_box_seen_*).
+// 1.1.2: test switches: launch_off_<part> = 1 in the launch file skips that part of the arena for
+// one match (ra_launch_off), to find what stops the game's effects. Without it nothing changes.
+// 1.1.3: the big toys' purple glow only while a player is near their pedestal (ra_toy_glow_near):
+// 166 glows on from the start left the game no room for its own effects.
 // Locals are kept in fields; the compiler's local assignments are unsafe.
 #using scripts\common\callbacks;
 #using scripts\common\utility;
@@ -268,7 +274,7 @@ autoexec ra_register()
         return;
 
     ra_read_launch();
-    nengine_store_set( "rex_arena", "version", "1.1" );
+    nengine_store_set( "rex_arena", "version", "1.1.3" );
     nengine_store_set( "rex_arena", "host", "zm_sat_scarab" );
     nengine_store_set( "rex_arena", "poi", "zone_boss_arena_ff" );
     nengine_store_set( "rex_arena", "status", "registered" );
@@ -291,6 +297,12 @@ autoexec ra_register()
     nengine_store_set( "rex_arena", "ammo_cost", "waiting" );
     nengine_store_set( "rex_arena", "no_super_sprint", "waiting" );
     nengine_store_set( "rex_arena", "drop", "not_started" );
+    if ( ra_launch_off( "arena" ) )
+    {
+        nengine_store_set( "rex_arena", "status", "arena_off_by_launch_file" );
+        ra_mark( "arena_off" );
+        return;
+    }
     level.ra_spawn_calls = 0;
     level.ra_players_moved = 0;
     level.ra_ready = 0;
@@ -298,16 +310,26 @@ autoexec ra_register()
     level callback::add( #"player_spawned", &ra_spawned );
     // player damage event: cancels fall damage during the drop only
     level callback::add( #"hash_652eb614ba902b3d", &ra_on_damaged );
-    level thread ra_prepare();
-    level thread rx_wunder_early();
-    level thread rx_no_super_sprint();
-    level thread rx_half_ammo_cost();
-    level thread rx_user_machines();
-    level thread rx_gobblegum_manager();
-    level thread rx_exfil_manager();
-    level thread ra_hide_minimap();
-    level thread ra_warden_fade_watch();
-    level thread ra_exfil_boss_watch();
+    if ( !ra_launch_off( "prepare" ) )
+        level thread ra_prepare();
+    if ( !ra_launch_off( "wunder" ) )
+        level thread rx_wunder_early();
+    if ( !ra_launch_off( "sprint" ) )
+        level thread rx_no_super_sprint();
+    if ( !ra_launch_off( "ammo_cost" ) )
+        level thread rx_half_ammo_cost();
+    if ( !ra_launch_off( "machines" ) )
+        level thread rx_user_machines();
+    if ( !ra_launch_off( "gobblegum" ) )
+        level thread rx_gobblegum_manager();
+    if ( !ra_launch_off( "exfil" ) )
+        level thread rx_exfil_manager();
+    if ( !ra_launch_off( "minimap" ) )
+        level thread ra_hide_minimap();
+    if ( !ra_launch_off( "warden_fade" ) )
+        level thread ra_warden_fade_watch();
+    if ( !ra_launch_off( "exfil_boss" ) )
+        level thread ra_exfil_boss_watch();
 }
 
 function ra_selected()
@@ -374,6 +396,8 @@ function ra_read_launch()
     nengine_store_set( "rex_arena", "use_no_rig", level.ra_no_rig );
     nengine_store_set( "rex_arena", "use_no_states", level.ra_no_states );
     nengine_store_set( "rex_arena", "use_no_drop", level.ra_no_drop );
+    ra_launch_off_read();
+    nengine_store_set( "rex_arena", "use_off", level.ra_off_text == "" ? "none" : level.ra_off_text );
 }
 
 // Server time (ms) of a set-up step, as t_<step>. Drop steps use ra_tyr_mark.
@@ -433,7 +457,8 @@ function ra_spawned( params )
     if ( !isdefined( level.ra_services_started ) )
     {
         level.ra_services_started = 1;
-        level thread ra_specials_manager();
+        if ( !ra_launch_off( "specials" ) )
+            level thread ra_specials_manager();
     }
 }
 
@@ -753,6 +778,9 @@ function ra_on_damaged( params )
 autoexec ra_tyr_preload()
 {
     if ( !ra_selected() )
+        return;
+    nengine_store_set( "rex_arena", "fx_preload_tyr", ra_launch_off( "fx_preload" ) ? "skipped" : "loaded" );
+    if ( ra_launch_off( "fx_preload" ) )
         return;
     namespace_60b3bdcc70f79fc6::function_2825fe58920e70c4( "begin_eject_up", "vfx_sat_levels_zm_locust_tube_teleport_in_screen" );
     namespace_60b3bdcc70f79fc6::function_2825fe58920e70c4( "begin_eject_down", "vfx_sat_levels_zm_locust_tube_teleport_out_screen" );
@@ -5291,6 +5319,9 @@ autoexec rx_rampage_preload()
 {
     if ( !ra_selected() )
         return;
+    nengine_store_set( "rex_arena", "fx_preload_rampage", ra_launch_off( "fx_preload" ) ? "skipped" : "loaded" );
+    if ( ra_launch_off( "fx_preload" ) )
+        return;
     level.rx_rampage_fx = loadfxasset( "vfx_jup_ob_gameplay_zm_rampage_inducer_despawn" );
 }
 
@@ -6262,6 +6293,7 @@ function ra_box_wonder()
         return;
     }
     level.ra_bw_rex = level.var_8b6bf63f61fe01f9;
+    ra_box_seen_setup();
     level.ra_bw_ff = undefined;
     level.ra_bw_root = undefined;
     if ( isdefined( function_6071eb16b74b2e99( %"hash_3386f9f65fa8f7e7" ) ) )
@@ -6322,6 +6354,133 @@ function ra_box_wonder_pick( player, a, b )
     else
         level.var_8b6bf63f61fe01f9 = level.ra_bw_rex;
     nengine_store_set( "rex_arena", "box_wonder_rolls", level.ra_bw_rolls + " rolls; wonder tier set to the Gauntlet's list on " + level.ra_bw_ffn + ", Rex's on " + ( level.ra_bw_rolls - level.ra_bw_ffn ) );
+    if ( isdefined( level.ra_bs_items ) )
+    {
+        if ( isdefined( player ) && isdefined( self ) && isdefined( self.var_37f3a4cd8252c9f0 ) && self.var_37f3a4cd8252c9f0 == player )
+            level thread ra_box_seen_roll( self, level.var_8b6bf63f61fe01f9 == level.ra_bw_ff );
+        else
+            level.ra_bs_nobox++;
+    }
+}
+
+// 1.1.1: a record of what each arena box spin gives (user: "are u sure wardem
+// blight ww is on the box? check my logs", then "do it pls"). Records only; the
+// box and its odds are 1.1's. A wonder weapon keeps its item id when the box
+// rolls it (core function_a1eaa1dc0b25176b), so each spin's item is compared
+// with the items of Rex's wonder list and the Necrofluid Gauntlet's.
+function ra_box_seen_setup()
+{
+    level.ra_bs_items = [];
+    level.ra_bs_names = [];
+    level.ra_bs_counts = [];
+    level.ra_bs_spins = 0;
+    level.ra_bs_other = 0;
+    level.ra_bs_gun = 0;
+    level.ra_bs_none = 0;
+    level.ra_bs_nobox = 0;
+    level.ra_bs_b = function_6071eb16b74b2e99( level.ra_bw_rex );
+    if ( isdefined( level.ra_bs_b ) && isdefined( level.ra_bs_b.var_a07f3f0105a769a7 ) )
+    {
+        for ( level.ra_bs_i = 0; level.ra_bs_i < level.ra_bs_b.var_a07f3f0105a769a7.size; level.ra_bs_i++ )
+        {
+            level.ra_bs_x = level.ra_bs_b.var_a07f3f0105a769a7[ level.ra_bs_i ].var_f98825c1490f96d0;
+            if ( isdefined( level.ra_bs_x ) )
+            {
+                level.ra_bs_names[ level.ra_bs_items.size ] = "Rex's own wonder weapon (Rex list #" + level.ra_bs_i + ")";
+                if ( level.ra_bs_x == %"hash_5ccd4ffef24f2106" )
+                    level.ra_bs_names[ level.ra_bs_items.size ] = "Ray Gun";
+                else if ( level.ra_bs_x == %"hash_613157257e008eff" )
+                    level.ra_bs_names[ level.ra_bs_items.size ] = "Ray Gun Mark II";
+                level.ra_bs_items[ level.ra_bs_items.size ] = level.ra_bs_x;
+            }
+        }
+    }
+    level.ra_bs_names[ level.ra_bs_items.size ] = "Necrofluid Gauntlet";
+    level.ra_bs_items[ level.ra_bs_items.size ] = %"hash_0e5db3b642aea010";
+    level.ra_bs_t = "watching " + level.ra_bs_items.size + " wonder items:";
+    for ( level.ra_bs_i = 0; level.ra_bs_i < level.ra_bs_items.size; level.ra_bs_i++ )
+    {
+        level.ra_bs_counts[ level.ra_bs_i ] = 0;
+        level.ra_bs_t = level.ra_bs_t + " " + level.ra_bs_names[ level.ra_bs_i ] + ";";
+    }
+    nengine_store_set( "rex_arena", "box_seen_setup", level.ra_bs_t );
+    nengine_store_save( "rex_arena", "runtime" );
+}
+
+// 1.1.1: one box spin for the record (records only). The box rolls its item
+// into box.var_182083fc5337ebe9 right after the roll hook, with no wait.
+function ra_box_seen_roll( box, gauntlet )
+{
+    level endon( #"game_ended" );
+    wait 0.1;
+    level.ra_bs_spins++;
+    level.ra_bs_k = -1;
+    if ( !isdefined( box ) || !isdefined( box.var_182083fc5337ebe9 ) )
+    {
+        level.ra_bs_none++;
+        level.ra_bs_t = "no item";
+    }
+    else
+    {
+        for ( level.ra_bs_i = 0; level.ra_bs_i < level.ra_bs_items.size; level.ra_bs_i++ )
+        {
+            if ( box.var_182083fc5337ebe9 == level.ra_bs_items[ level.ra_bs_i ] )
+                level.ra_bs_k = level.ra_bs_i;
+        }
+        if ( level.ra_bs_k >= 0 )
+        {
+            level.ra_bs_counts[ level.ra_bs_k ]++;
+            level.ra_bs_t = level.ra_bs_names[ level.ra_bs_k ];
+        }
+        else if ( istrue( box.var_70598bcf767c22b6 ) )
+        {
+            level.ra_bs_other++;
+            level.ra_bs_t = "another wonder weapon";
+        }
+        else
+        {
+            level.ra_bs_gun++;
+            level.ra_bs_t = "a normal weapon";
+        }
+    }
+    level.ra_bs_t = "spin " + level.ra_bs_spins + " (round " + ( isdefined( level.ra_sp_round ) ? level.ra_sp_round : -1 ) + "): " + level.ra_bs_t + "; wonder tier list this spin: " + ( gauntlet ? "the Gauntlet's" : "Rex's" );
+    nengine_store_set( "rex_arena", "box_seen_last", level.ra_bs_t );
+    if ( level.ra_bs_spins <= 40 )
+        nengine_store_set( "rex_arena", "box_seen_" + level.ra_bs_spins, level.ra_bs_t );
+    level.ra_bs_t = level.ra_bs_spins + " spins:";
+    for ( level.ra_bs_i = 0; level.ra_bs_i < level.ra_bs_items.size; level.ra_bs_i++ )
+        level.ra_bs_t = level.ra_bs_t + " " + level.ra_bs_names[ level.ra_bs_i ] + " " + level.ra_bs_counts[ level.ra_bs_i ] + ";";
+    level.ra_bs_t = level.ra_bs_t + " another wonder weapon " + level.ra_bs_other + "; normal weapons " + level.ra_bs_gun + "; no item " + level.ra_bs_none + "; spins not read " + level.ra_bs_nobox;
+    nengine_store_set( "rex_arena", "box_seen", level.ra_bs_t );
+    nengine_store_save( "rex_arena", "runtime" );
+}
+
+// 1.1.2: test switches (user: "loads of vfx are missing", "lets fix the vfx").
+// Each part of the arena can be skipped for one match with launch_off_<part> = 1
+// in the launch file (rex_launch.py off=...), to find which part stops the
+// game's effects. Without the file, or with no switch at 1, every part runs.
+function ra_launch_off_read()
+{
+    level.ra_off = [];
+    level.ra_off_text = "";
+    if ( level.ra_launch_file != "read" )
+        return;
+    level.ra_off_names = [ "arena", "prepare", "wunder", "sprint", "ammo_cost", "machines", "gobblegum", "exfil", "minimap", "warden_fade", "exfil_boss", "box", "box_probe", "box_wonder", "tedd", "round_select", "armor", "void_claw", "rampage", "specials", "fx_preload" ];
+    for ( level.ra_off_i = 0; level.ra_off_i < level.ra_off_names.size; level.ra_off_i++ )
+    {
+        level.ra_flag = nengine_store_get( "rex_arena", "launch_off_" + level.ra_off_names[ level.ra_off_i ] );
+        if ( isdefined( level.ra_flag ) && level.ra_flag == 1 )
+        {
+            level.ra_off[ level.ra_off_names[ level.ra_off_i ] ] = 1;
+            level.ra_off_text = level.ra_off_text + level.ra_off_names[ level.ra_off_i ] + " ";
+        }
+    }
+}
+
+// 1.1.2: 1 when the launch file skips this part for this match.
+function ra_launch_off( part )
+{
+    return isdefined( level.ra_off ) && isdefined( level.ra_off[ part ] );
 }
 
 // 0.4.1: Ashes Arena's machines and rules for this arena (user: "do all expect
@@ -6333,23 +6492,33 @@ function rx_user_machines()
     wait 8;
     if ( !ra_selected() )
         return;
-    level thread rx_box_manager();
-    level thread ra_box_probe();
-    level thread ra_box_wonder();
+    if ( !ra_launch_off( "box" ) )
+        level thread rx_box_manager();
+    if ( !ra_launch_off( "box_probe" ) )
+        level thread ra_box_probe();
+    if ( !ra_launch_off( "box_wonder" ) )
+        level thread ra_box_wonder();
     wait 0.25;
-    rx_spawn_rampage( ( 29101.68, -29328.55, 2120 ), ( 0, -38.69, 0 ) );
-    nengine_store_set( "rex_arena", "rampage", isdefined( level.rx_rp_result ) ? "ready" : "failed" );
-    nengine_store_set( "rex_arena", "rampage_note", level.rx_rp_note );
-    rx_track_dxd( "rampage", level.rx_rp_result, ( 29101.68, -29328.55, 2120 ), -38.69 );
-    level thread rx_rampage_watch();
+    if ( !ra_launch_off( "rampage" ) )
+    {
+        rx_spawn_rampage( ( 29101.68, -29328.55, 2120 ), ( 0, -38.69, 0 ) );
+        nengine_store_set( "rex_arena", "rampage", isdefined( level.rx_rp_result ) ? "ready" : "failed" );
+        nengine_store_set( "rex_arena", "rampage_note", level.rx_rp_note );
+        rx_track_dxd( "rampage", level.rx_rp_result, ( 29101.68, -29328.55, 2120 ), -38.69 );
+        level thread rx_rampage_watch();
+    }
     nengine_store_save( "rex_arena", "runtime" );
-    level thread rx_tedd_manager();
+    if ( !ra_launch_off( "tedd" ) )
+        level thread rx_tedd_manager();
     // 0.5.41: the round-select pedestals
-    level thread ra_round_select();
+    if ( !ra_launch_off( "round_select" ) )
+        level thread ra_round_select();
     // 0.5.72: the armor wall buy
-    level thread ra_armor_wallbuy();
+    if ( !ra_launch_off( "armor" ) )
+        level thread ra_armor_wallbuy();
     // 0.5.90: the Void Claw pedestals
-    level thread ra_void_claw();
+    if ( !ra_launch_off( "void_claw" ) )
+        level thread ra_void_claw();
 }
 
 // 0.5.90: Rex's Void Claw pedestals in the arena (user: "can we add the
@@ -7129,6 +7298,8 @@ function ra_round_select()
     // 0.5.57: the big toys' glow points, and the Rex glows made on them
     level.ra_rs_gp_n = 0;
     level.ra_rs_gl_n = 0;
+    // 1.1.3: and freed (ra_toy_glow_free)
+    level.ra_rs_gl_off = 0;
     level.ra_rs_m = [];
     level.ra_rs_where = "";
     // 0.5.43: the places in DellxCell's dev position log (p1..p6), as the user
@@ -7687,12 +7858,9 @@ function ra_toy_copies()
         level.ra_tc_m = level.ra_rs_toy_m[ level.ra_tc_i ];
         level.ra_tc_i++;
         // 0.5.57: a big toy already up: this player's glows on it
+        // 1.1.3: its glows only near its pedestal (ra_toy_glow_near)
         if ( isdefined( level.ra_tc_m ) && isdefined( level.ra_tc_m.ra_gpts ) )
-        {
-            if ( istrue( level.ra_tc_m.ra_glowed ) )
-                level.ra_tc_m ra_toy_glow_make( self );
             continue;
-        }
         if ( !isdefined( level.ra_tc_m ) || !isdefined( level.ra_tc_m.ra_glow ) || !isdefined( level.ra_tc_m.ra_sc_name ) )
             continue;
         // 0.5.56: on the mover (the toy's origin) with its model, as at round
@@ -7726,6 +7894,11 @@ function ra_toy_copies()
 // are made where the toy is once it has risen. Records round_select_glows.
 function ra_toy_glow_make( pl )
 {
+    // 1.1.3: each player's glows apart, so ra_toy_glow_free can free them
+    level.ra_tg_e = pl getentitynumber();
+    if ( !isdefined( self.ra_gsp ) )
+        self.ra_gsp = [];
+    self.ra_gsp[ level.ra_tg_e ] = [];
     level.ra_tg_f = anglestoforward( self.angles );
     level.ra_tg_l = anglestoforward( self.angles + ( 0, 90, 0 ) );
     level.ra_tg_i = 0;
@@ -7738,11 +7911,11 @@ function ra_toy_glow_make( pl )
             continue;
         level.ra_tg_sc setscriptablepartstate( "base", "off" );
         level.ra_tg_sc setscriptablepartstate( "glow", "on" );
-        self.ra_gsc[ self.ra_gsc.size ] = level.ra_tg_sc;
+        self.ra_gsp[ level.ra_tg_e ][ self.ra_gsp[ level.ra_tg_e ].size ] = level.ra_tg_sc;
         level.ra_rs_gl_n++;
     }
     level.ra_tg_sc = undefined;
-    nengine_store_set( "rex_arena", "round_select_glows", "Rex glows on the big toys: " + level.ra_rs_gl_n + " made (" + level.ra_rs_gp_n + " points a player)" );
+    nengine_store_set( "rex_arena", "round_select_glows", "Rex glows on the big toys, near their pedestal only: " + ( level.ra_rs_gl_n - level.ra_rs_gl_off ) + " now (made " + level.ra_rs_gl_n + ", freed " + level.ra_rs_gl_off + "; " + level.ra_rs_gp_n + " points a player)" );
     nengine_store_save( "rex_arena", "runtime" );
 }
 
@@ -7907,6 +8080,8 @@ function ra_round_select_pass()
         level.ra_rs_free = 0;
     level.ra_rs_now = function_83bf4b34fbbe124b();
     level.ra_rs_near = -1;
+    // 1.1.3: the big toys' glows near their pedestal only
+    ra_toy_glow_near();
     level.ra_rs_pi = 0;
     while ( isdefined( level.players ) && level.ra_rs_pi < level.players.size )
     {
@@ -8047,22 +8222,95 @@ function ra_toy_rise()
     if ( isdefined( self.ra_glow ) )
         self.ra_glow moveto( self.ra_glow.origin + ( 0, 0, self.ra_up ), 2 );
     wait 2.1;
-    // 0.5.57: a big toy, up: Rex's glow on its body for each player with
-    // copies (later players get theirs in ra_toy_copies)
+    // 0.5.57: a big toy, up: Rex's glow on its body
+    // 1.1.3: made only while a player is near its pedestal (ra_toy_glow_near)
     if ( isdefined( self.ra_gpts ) )
-    {
         self.ra_glowed = 1;
-        self.ra_pi = 0;
-        while ( isdefined( level.players ) && self.ra_pi < level.players.size )
-        {
-            if ( isdefined( level.players[ self.ra_pi ] ) && istrue( level.players[ self.ra_pi ].ra_toy_copied ) )
-                self ra_toy_glow_make( level.players[ self.ra_pi ] );
-            self.ra_pi++;
-        }
-    }
     self bobbing( ( 0, 0, 1 ), self.ra_bob, 2 );
     if ( isdefined( self.ra_glow ) )
         self.ra_glow bobbing( ( 0, 0, 1 ), self.ra_bob, 2 );
+}
+
+// 1.1.3: the big toys' purple glow only near their pedestal (user: "loads of
+// vfx are missing"; chose "Glow only when near"). 0.7.4's 166 looping glows
+// from the start (0.5.57's points on every big toy, for every player) left the
+// game no room for its own effects; with round select off they came back.
+// Each player has the glow of one pedestal at most: the nearest within 150
+// units (150 up or down), kept until they are 200 away or another pedestal is
+// nearer (the pedestals stand 150 to 215 apart). Its risen big toys' glows
+// for that player are made (ra_toy_glow_make); every other toy's glows for that
+// player, and all of them when the player is dead, are freed.
+function ra_toy_glow_near()
+{
+    level.ra_gn_pi = 0;
+    while ( isdefined( level.players ) && level.ra_gn_pi < level.players.size )
+    {
+        level.ra_gn_pl = level.players[ level.ra_gn_pi ];
+        level.ra_gn_pi++;
+        if ( !isdefined( level.ra_gn_pl ) || !istrue( level.ra_gn_pl.ra_toy_copied ) )
+            continue;
+        level.ra_gn_e = level.ra_gn_pl getentitynumber();
+        if ( !isdefined( level.ra_gn_pl.ra_gn_k ) )
+            level.ra_gn_pl.ra_gn_k = -1;
+        // the nearest pedestal within 150; the one already lit stays within 200
+        level.ra_gn_best = -1;
+        level.ra_gn_bd = 150;
+        level.ra_gn_keep = 0;
+        level.ra_gn_k = 0;
+        while ( isalive( level.ra_gn_pl ) && level.ra_gn_k < level.ra_rs_m.size )
+        {
+            if ( isdefined( level.ra_rs_m[ level.ra_gn_k ] ) )
+            {
+                level.ra_gn_d = distance( ( level.ra_gn_pl.origin[ 0 ], level.ra_gn_pl.origin[ 1 ], 0 ), ( level.ra_rs_m[ level.ra_gn_k ].origin[ 0 ], level.ra_rs_m[ level.ra_gn_k ].origin[ 1 ], 0 ) );
+                level.ra_gn_z = level.ra_gn_pl.origin[ 2 ] - level.ra_rs_m[ level.ra_gn_k ].origin[ 2 ];
+                if ( level.ra_gn_z < 150 && level.ra_gn_z > -150 && level.ra_gn_d < level.ra_gn_bd )
+                {
+                    level.ra_gn_best = level.ra_gn_k;
+                    level.ra_gn_bd = level.ra_gn_d;
+                }
+                if ( level.ra_gn_k == level.ra_gn_pl.ra_gn_k && level.ra_gn_z < 200 && level.ra_gn_z > -200 && level.ra_gn_d < 200 )
+                    level.ra_gn_keep = 1;
+            }
+            level.ra_gn_k++;
+        }
+        if ( level.ra_gn_best < 0 && level.ra_gn_keep )
+            level.ra_gn_best = level.ra_gn_pl.ra_gn_k;
+        level.ra_gn_pl.ra_gn_k = level.ra_gn_best;
+        level.ra_gn_j = 0;
+        while ( level.ra_gn_j < level.ra_rs_toy_m.size )
+        {
+            level.ra_gn_t = level.ra_rs_toy_m[ level.ra_gn_j ];
+            level.ra_gn_want = level.ra_rs_toy_k[ level.ra_gn_j ] == level.ra_gn_best;
+            level.ra_gn_j++;
+            if ( !isdefined( level.ra_gn_t ) || !isdefined( level.ra_gn_t.ra_gpts ) || level.ra_gn_t.ra_gpts.size == 0 || !istrue( level.ra_gn_t.ra_glowed ) )
+                continue;
+            level.ra_gn_has = isdefined( level.ra_gn_t.ra_gsp ) && isdefined( level.ra_gn_t.ra_gsp[ level.ra_gn_e ] ) && level.ra_gn_t.ra_gsp[ level.ra_gn_e ].size > 0;
+            if ( level.ra_gn_want && !level.ra_gn_has )
+                level.ra_gn_t ra_toy_glow_make( level.ra_gn_pl );
+            else if ( !level.ra_gn_want && level.ra_gn_has )
+                level.ra_gn_t ra_toy_glow_free( level.ra_gn_e );
+        }
+    }
+    level.ra_gn_pl = undefined;
+    level.ra_gn_t = undefined;
+}
+
+// 1.1.3: player e's glows on this big toy freed (ra_toy_glow_near).
+function ra_toy_glow_free( e )
+{
+    level.ra_tf_i = 0;
+    while ( level.ra_tf_i < self.ra_gsp[ e ].size )
+    {
+        if ( isdefined( self.ra_gsp[ e ][ level.ra_tf_i ] ) )
+        {
+            self.ra_gsp[ e ][ level.ra_tf_i ] freescriptable();
+            level.ra_rs_gl_off++;
+        }
+        level.ra_tf_i++;
+    }
+    self.ra_gsp[ e ] = [];
+    nengine_store_set( "rex_arena", "round_select_glows", "Rex glows on the big toys, near their pedestal only: " + ( level.ra_rs_gl_n - level.ra_rs_gl_off ) + " now (made " + level.ra_rs_gl_n + ", freed " + level.ra_rs_gl_off + "; " + level.ra_rs_gp_n + " points a player)" );
+    nengine_store_save( "rex_arena", "runtime" );
 }
 
 // 0.5.41: the pedestal within 60 units (and 120 up or down) of a place, -1

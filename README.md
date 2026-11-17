@@ -1,7 +1,7 @@
 # Veytharion's Gauntlet
 
 **A boss arena Survival mode for Black Ops 7 Zombies on Rex Infernus (Kronos)**
-by DellxCell (The Hamster) · version 1.1
+by DellxCell (The Hamster) · version 1.1.3
 
 ![The arena](Screenshots/arena.jpg)
 
@@ -44,7 +44,7 @@ The bosses come at these rounds whether you play up to them or jump there from a
 
 ### Round-select pedestals
 
-Six pedestals, one for each boss round, stand in the east section of the arena. Each one holds Rex's Easter egg toys of its bosses, floating and glowing purple. Press Use at a pedestal to go to its round. The pedestals are off while a boss fight is on.
+Six pedestals, one for each boss round, stand in the east section of the arena. Each one holds Rex's Easter egg toys of its bosses, floating above it. Walk up to a pedestal and its toys glow purple. Press Use at a pedestal to go to its round. The pedestals are off while a boss fight is on.
 
 ![Round-select pedestals with Rex's glowing toys](Screenshots/round-select-pedestals.jpg)
 
@@ -79,13 +79,21 @@ Three of Rex's Void Claw pedestals stand in the arena, as in Rex's own boss figh
 - **Custom loading intro:** four pictures of the arena pan across the loading screen. The lobby card and loading screen show Veytharion's Gauntlet, Survival.
 - Rex's own zombies and special rounds.
 
+## What's new
+
+**1.1.3**
+- **Fixed: effects missing for the whole match.** Muzzle flashes, zombie and boss effects, power-up glows and the machines' effects were missing in the gauntlet. The round-select toys' purple glows (166 of them, all on from the start) used up the game's room for effects. Now only the pedestal you're standing at glows, and its glow goes away when you walk off.
+
+**1.1**
+- Mystery Box wonder weapons: the Ray Gun, the Ray Gun Mark II, Rex Infernus' own wonder weapon and the Necrofluid Gauntlet.
+
 ## Install
 
 **From the Kronos Workshop:** find Veytharion's Gauntlet and install it.
 
 **By hand:**
 
-1. Download **[Veytharions-Gauntlet-1.1.zip](https://github.com/DellxCell/Veytharion-Gauntlet/releases/download/v1.1/Veytharions-Gauntlet-1.1.zip)** from the [latest release](https://github.com/DellxCell/Veytharion-Gauntlet/releases/latest).
+1. Download **[Veytharions-Gauntlet-1.1.3.zip](https://github.com/DellxCell/Veytharion-Gauntlet/releases/download/v1.1.3/Veytharions-Gauntlet-1.1.3.zip)** from the [latest release](https://github.com/DellxCell/Veytharion-Gauntlet/releases/latest).
 2. Close Black Ops 7 and KronosLauncher completely.
 3. Extract the zip into `C:\Kronos\cod25\kronos\mods`. You should end up with `C:\Kronos\cod25\kronos\mods\rex_arena\mod.json`, plus the `scripts`, `lua` and `images` folders next to it.
 4. Launch the game through Kronos as usual.
