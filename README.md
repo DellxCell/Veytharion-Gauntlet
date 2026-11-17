@@ -8,6 +8,8 @@ Drop into the boss arena of Rex Infernus and survive. Jump straight to any boss 
 
 ![The arena](Screenshots/arena.jpg)
 
+**Website:** https://dellxcell.github.io/Veytharion-Gauntlet/
+
 ## Download
 
 Install it from the **Kronos Workshop**, or get the zip from **[Releases](https://github.com/DellxCell/Veytharion-Gauntlet/releases)** and follow [Install](#install) below.

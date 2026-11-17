@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Veytharion&#x27;s Gauntlet</title>
+<meta name="description" content="A boss arena Survival mode for Black Ops 7 Zombies on Rex Infernus, made for Kronos.">
+<meta property="og:title" content="Veytharion&#x27;s Gauntlet 1.2.1">
+<meta property="og:description" content="A boss arena Survival mode for Black Ops 7 Zombies on Rex Infernus, made for Kronos.">
+<meta property="og:image" content="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/arena.jpg">
+<meta property="og:url" content="https://dellxcell.github.io/Veytharion-Gauntlet/">
+<meta name="theme-color" content="#a855f7">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the Kronos Plus page's single dark column: brand header, a highlight panel, feature columns, screenshots, get started. */
+:root {
+  color-scheme: dark;
+  --bg: #0d0f13;
+  --panel: #171a21;
+  --line: #262b35;
+  --text: #e9ecf1;
+  --muted: #9aa3b2;
+  --accent: #a855f7;
+  --accent-hi: #d8b4fe;
+  --accent-rgb: 168, 85, 247;
+  --info: #6aa8ff;
+  --ok: #3ccf7f;
+  --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 48px 40px;
+}
+main { max-width: 860px; margin: 0 auto; display: grid; gap: 40px; }
+header { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+header img.logo { width: 72px; height: 72px; flex: none; }
+h1 { font: 700 44px/1 var(--display); margin: 0; letter-spacing: .5px; text-wrap: balance; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 .hl { color: var(--accent-hi); }
+h1 .ver { font: 600 14px var(--mono); color: var(--accent-hi); border: 1px solid rgba(var(--accent-rgb), .45); background: rgba(var(--accent-rgb), .1); padding: 3px 10px; border-radius: 999px; letter-spacing: 0; }
+.tag { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.promise { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.promise span { font: 500 12px var(--mono); padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+.promise span::before { content: "\2713  "; color: var(--ok); }
+.cta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 16px; }
+a.get { font: 600 14px var(--body); color: #0b0710; text-decoration: none; background: linear-gradient(135deg, var(--accent-hi), var(--accent)); border-radius: 10px; padding: 10px 16px; }
+a.src { font: 500 14px var(--body); color: var(--text); text-decoration: none; border: 1px solid var(--line); border-radius: 10px; padding: 9px 15px; }
+a.src:hover { border-color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.get-note { color: var(--muted); font-size: 13px; }
+.hero { margin: 0; }
+.hero img { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; display: block; border-radius: 14px; border: 1px solid var(--line); }
+.new { border: 1px solid rgba(var(--accent-rgb), .4); border-radius: 14px; padding: 20px 22px; background: linear-gradient(135deg, rgba(var(--accent-rgb), .10), rgba(var(--accent-rgb), .03) 60%), var(--panel); }
+.new .feats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); column-gap: 32px; }
+.new .feats li { border-left-color: var(--accent); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 32px; }
+.cols > section { min-width: 0; }
+h2 { font: 600 13px var(--display); text-transform: uppercase; letter-spacing: 2px; color: var(--accent-hi); margin: 0 0 4px; }
+.where { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+ul.feats { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.feats li { display: grid; gap: 2px; padding-left: 14px; border-left: 2px solid var(--line); min-width: 0; }
+.feats b { font-weight: 600; }
+.feats span { color: var(--muted); font-size: 14px; }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
+.shots figure { margin: 0; display: grid; gap: 6px; }
+.shots img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; border-radius: 10px; border: 1px solid var(--line); }
+.shots figcaption { color: var(--muted); font-size: 13px; }
+.start { display: grid; gap: 10px; }
+.start ol, .start ul { margin: 0; padding-left: 20px; color: var(--muted); display: grid; gap: 6px; }
+.start b { color: var(--text); font-weight: 600; }
+code { font: 13px var(--mono); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; overflow-wrap: anywhere; }
+footer { border-top: 1px solid var(--line); padding-top: 18px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+footer a { color: var(--muted); }
+footer a:hover { color: var(--text); }
+@media (max-width: 560px) {
+  body { padding-block: 28px 32px; }
+  h1 { font-size: 32px; }
+  header img.logo { width: 56px; height: 56px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img class="logo" src="logo.svg" alt="">
+    <div style="min-width:0;flex:1">
+      <h1><span>Veytharion&#x27;s <span class="hl">Gauntlet</span></span><span class="ver">1.2.1</span></h1>
+      <p class="tag">A boss arena Survival mode for Black Ops 7 Zombies on Rex Infernus, made for Kronos. Jump to any boss round, beat each boss for an upgrade that lasts the match, and take on all four at round 999.</p>
+      <div class="promise"><span>Solo or a squad of 4</span><span>6 boss rounds</span><span>No game files replaced</span><span>Free</span></div>
+      <div class="cta">
+        <a class="get" href="https://github.com/DellxCell/Veytharion-Gauntlet/releases/latest">Download</a>
+        <a class="src" href="https://github.com/DellxCell/Veytharion-Gauntlet">Source code</a>
+        <span class="get-note">Kronos Workshop listing waiting for approval.</span>
+      </div>
+    </div>
+  </header>
+
+  <figure class="hero"><img src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/arena.jpg" alt="The boss arena of Rex Infernus"></figure>
+  <section class="new">
+    <h2>New in 1.2.1</h2>
+    <p class="where">Wonderbar, salvage, a tougher Caltheris and fixes</p>
+    <ul class="feats">
+      <li><b>Wonderbar loves the Blight</b><span>Wonderbar gives the Warden Blight about half the time, and never a second one if you already hold it.</span></li>
+      <li><b>5,000 salvage per boss</b><span>Every player gets 5,000 salvage each time a boss is beaten, in every boss round.</span></li>
+      <li><b>A tougher Caltheris</b><span>Half the damage in phase 2 and a quarter in phase 3, for every weapon, even one picked up mid-fight.</span></li>
+      <li><b>Fixes</b><span>A player leaving a squad leaves no toy glows behind, the Warden end works with no players left, and old test code is gone.</span></li>
+    </ul>
+  </section>
+
+  <div class="cols">
+  <section>
+    <h2>Boss rounds</h2>
+    <p class="where">Play up to them or jump there from a pedestal</p>
+    <ul class="feats">
+      <li><b>Round 50: Z-Rex</b><span>Golden Armor for every player.</span></li>
+      <li><b>Round 75: The Guardian</b><span>Ultra weapon rarity, also added to the Arsenal.</span></li>
+      <li><b>Round 100: Caltheris</b><span>Pack-a-Punch IV.</span></li>
+      <li><b>Round 255 and 500</b><span>Z-Rex and the Guardian, then the three of them together.</span></li>
+      <li><b>Round 999: The Warden</b><span>All four bosses. The Warden fakes its death twice, then BOSSES DEFEATED and the Continue Playing? vote.</span></li>
+      <li><b>Boss Rush style</b><span>A prepare timer before each fight, a health bar per boss, Max Ammo, Full Power, a Free Perk and Max Armor from every boss, and the round ends when the last boss dies.</span></li>
+    </ul>
+  </section>
+  <section>
+    <h2>In the arena</h2>
+    <p class="where">Rex Infernus' copy of the Ashes boss arena</p>
+    <ul class="feats">
+      <li><b>Round-select pedestals</b><span>Six pedestals with Rex's Easter egg toys. Walk up and they glow; press Use to go to that round.</span></li>
+      <li><b>Void Claw and Void Talon</b><span>Three Void Claw pedestals. Beat Z-Rex, the Guardian and Caltheris and it becomes the Void Talon, unlimited for the match.</span></li>
+      <li><b>Drop-in</b><span>You drop into the arena from above, like the ride down from Tyr in Totenreich.</span></li>
+      <li><b>Clean screen</b><span>No minimap or objective tracker, and a custom loading intro of the arena.</span></li>
+    </ul>
+  </section>
+  </div>
+  <div class="cols">
+  <section>
+    <h2>Machines</h2>
+    <p class="where">Everything you need in one arena</p>
+    <ul class="feats">
+      <li><b>Mystery Box</b><span>Ray Gun, Ray Gun Mark II, the Warden Blight and the Necrofluid Gauntlet.</span></li>
+      <li><b>Pack-a-Punch and the Arsenal</b><span>Upgrade and craft without leaving the arena.</span></li>
+      <li><b>Der Wunderfizz</b><span>From round 1, no power needed.</span></li>
+      <li><b>GobbleGum and armor</b><span>The GobbleGum machine and an armor wall buy next to the Wunderfizz.</span></li>
+      <li><b>Rampage Inducer</b><span>Turn it on when you want the rounds to speed up.</span></li>
+      <li><b>T.E.D.D. Tasks and Exfil</b><span>Both in the arena, off during boss fights.</span></li>
+    </ul>
+  </section>
+  <section>
+    <h2>Also</h2>
+    <p class="where">Small things that make it play right</p>
+    <ul class="feats">
+      <li><b>No super sprinters</b><span>Zombies never break into a super sprint.</span></li>
+      <li><b>Half-price ammo</b><span>At ammo caches and ammo stations.</span></li>
+      <li><b>Rex&#x27;s own zombies</b><span>Rex Infernus' zombies and special rounds.</span></li>
+    </ul>
+  </section>
+  </div>
+
+  <section>
+    <h2>Screenshots</h2>
+    <div class="shots">
+    <figure><img loading="lazy" src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/reward-golden-armor.jpg" alt="Z-Rex: Golden Armor"><figcaption>Z-Rex: Golden Armor</figcaption></figure>
+    <figure><img loading="lazy" src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/reward-ultra-rarity.jpg" alt="The Guardian: Ultra rarity"><figcaption>The Guardian: Ultra rarity</figcaption></figure>
+    <figure><img loading="lazy" src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/reward-pap-4.jpg" alt="Caltheris: Pack-a-Punch IV"><figcaption>Caltheris: Pack-a-Punch IV</figcaption></figure>
+    <figure><img loading="lazy" src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/guardian-and-z-rex.jpg" alt="The Guardian and Z-Rex"><figcaption>The Guardian and Z-Rex</figcaption></figure>
+    <figure><img loading="lazy" src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/round-select-pedestals.jpg" alt="Round-select pedestals"><figcaption>Round-select pedestals</figcaption></figure>
+    <figure><img loading="lazy" src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/mystery-box.jpg" alt="Mystery Box"><figcaption>Mystery Box</figcaption></figure>
+    <figure><img loading="lazy" src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/armor-wall-buy.jpg" alt="Armor wall buy"><figcaption>Armor wall buy</figcaption></figure>
+    <figure><img loading="lazy" src="https://raw.githubusercontent.com/DellxCell/Veytharion-Gauntlet/main/Screenshots/tedd-tasks.jpg" alt="T.E.D.D. Tasks"><figcaption>T.E.D.D. Tasks</figcaption></figure>
+    </div>
+  </section>
+  <section class="start">
+    <h2>Get started</h2>
+    <ol>
+      <li>Set up <b>Kronos</b> and run its launcher at least once.</li>
+      <li>Download <b>Veytharions-Gauntlet-1.2.1.zip</b> from the latest release.</li>
+      <li>Close <b>Black Ops 7</b> and <b>KronosLauncher</b>, then extract the zip into <code>C:\Kronos\cod25\kronos\mods</code>. You should end up with <code>mods\rex_arena\mod.json</code>.</li>
+      <li>Launch through Kronos and pick <b>Zombies &gt; Survival &gt; Veytharion's Gauntlet</b>.</li>
+    </ol>
+  </section>
+
+  <section class="start">
+    <h2>Good to know</h2>
+    <ul>
+      <li>Avoid Save &amp; Quit in the gauntlet; saving and resuming in the arena hasn't been tested.</li>
+      <li>With <b>Carry-forward</b> on in KronosLauncher, some launches start badly and the drop-in can freeze. Restart the game through Kronos.</li>
+      <li>Beaten bosses' bodies stay in the arena for the rest of the match.</li>
+      <li>Squad play hasn't been fully tested yet.</li>
+    </ul>
+  </section>
+  <footer>
+    <span>Black Ops 7 + Kronos</span>
+    <span>Made by <b>DellxCell</b> (The Hamster)</span>
+    <span><a href="https://github.com/DellxCell/Veytharion-Gauntlet">Source code and releases on GitHub</a></span>
+    <span>Fan-made. Not affiliated with the Kronos team or Activision.</span>
+  </footer>
+</main>
+</body>
+</html>
