@@ -1,5 +1,3 @@
-<p align="center"><img src="assets/logo.svg" width="96" alt="Veytharion's Gauntlet logo"></p>
-
 # Veytharion's Gauntlet
 
 A boss arena Survival mode for **Black Ops 7 Zombies** on Rex Infernus, made for **Kronos**.
