@@ -1,4 +1,4 @@
--- Rex Arena 1.1.3 menu entry and start route (mods/rex_arena), without editing
+-- Rex Arena 1.2.1 menu entry and start route (mods/rex_arena), without editing
 -- Kronos' launcher. Two Survival rows, Rex Arena solo (1000000206) and squad
 -- (1000000207), are placed like Ashes Arena's: copied from the launcher's Ashes
 -- Survival rows (1000000008 / 1000000009), but with Rex Infernus' card, picture
@@ -2512,7 +2512,7 @@ local C=rawget(G,"CLUA")
 local hash=type(C)=="table" and C.PushXHash or rawget(G,"xhash")
 if type(hash)~="function" then return end
 
-local A={version="1.1.3",installed=false,logged={},publishing=false}
+local A={version="1.2.1",installed=false,logged={},publishing=false}
 rawset(G,"REX_ARENA_MENU",A)
 
 local function log(message)

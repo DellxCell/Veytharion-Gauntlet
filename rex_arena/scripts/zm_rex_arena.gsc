@@ -1,4 +1,4 @@
-// Rex Arena 1.1.3: Rex Infernus (zm_sat_scarab) arena match, written for Rex.
+// Rex Arena 1.2.1: Rex Infernus (zm_sat_scarab) arena match, written for Rex.
 // Ashes Arena 0.4.43 is the reference; nothing here is shared with it at run
 // time (own ra_ names, own "rex_arena" store, own notifies).
 // Start: the mod Lua (lua/zm_rex_arena_post.lua) starts Rex round-based with
@@ -230,6 +230,18 @@
 // one match (ra_launch_off), to find what stops the game's effects. Without it nothing changes.
 // 1.1.3: the big toys' purple glow only while a player is near their pedestal (ra_toy_glow_near):
 // 166 glows on from the start left the game no room for its own effects.
+// 1.1.4: audit fixes: a player who leaves keeps no toy glows; each Weyward crystal's own move note;
+// the Warden reward place without a player; an unused function and four unused fields removed.
+// 1.1.5: Wonderbar in the arena box: the Warden Blight on about 1 spin in 2 (was about 1 in 4), with the
+// box's own reroll; the wonder roll hook asks first (ra_box_wonder_pick), Wonderbar spins in box_seen.
+// 1.1.6: Wonderbar gives no second Warden Blight to a player already holding one (the box rerolls it).
+// 1.1.7: 5,000 salvage to every player for each boss beaten (ra_boss_salvage, the game's currency call).
+// 1.1.8: beaten bosses' bodies are hidden when a round-select pedestal is used (ra_boss_corpse_*).
+// 1.1.9: Caltheris takes half of a weapon's phase-1 damage in phase 2 and a quarter in phase 3 (was all of it).
+// 1.2.0: beaten bosses' bodies are deleted at a pedestal pick (hide() left them; ra_boss_corpse_delete).
+// 1.2.1: audit: the boss body code out (1.2.0 runtime: the body entity has no model; the delete left the
+// body in view); Caltheris's later-phase share for a weapon first used after phase 1; the box_walk and
+// box_probe records out; box_wonder_swap's round before the first round.
 // Locals are kept in fields; the compiler's local assignments are unsafe.
 #using scripts\common\callbacks;
 #using scripts\common\utility;
@@ -267,6 +279,10 @@
 #using script_657e27b4628aaf50;
 #using script_1e43bd77ad5dde8c;
 #using script_77dca3b46e01eb1e;
+// 1.1.5: Wonderbar's box hook (namespace_72c943209a0510e6), asked by ra_box_wonder_pick
+#using script_1227bdf0f2eaf735;
+// 1.1.7: the game's currency (namespace_189fe7075a0930a5), for ra_boss_salvage
+#using script_3a9d7a7cfee99885;
 
 autoexec ra_register()
 {
@@ -274,7 +290,7 @@ autoexec ra_register()
         return;
 
     ra_read_launch();
-    nengine_store_set( "rex_arena", "version", "1.1.3" );
+    nengine_store_set( "rex_arena", "version", "1.2.1" );
     nengine_store_set( "rex_arena", "host", "zm_sat_scarab" );
     nengine_store_set( "rex_arena", "poi", "zone_boss_arena_ff" );
     nengine_store_set( "rex_arena", "status", "registered" );
@@ -541,7 +557,6 @@ function ra_drop_in()
     }
     if ( level.ra_no_drop )
     {
-        level.ra_first_landing = 1;
         nengine_store_set( "rex_arena", "drop", "skipped_by_launch_file" );
         nengine_store_save( "rex_arena", "runtime" );
         return;
@@ -566,7 +581,6 @@ function ra_drop_in()
     self.ra_tyr_height = 3000;
     self.ra_tyr_angles = ( 0, self getplayerangles()[ 1 ], 0 );
     self.ra_tyr_original_weapon = undefined;
-    self.ra_tyr_fallback = 0;
     self.ra_tyr_rig_released = 0;
     self.ra_dropping = 1;
     nengine_store_set( "rex_arena", "drop", "tyr_exit_started" );
@@ -617,7 +631,6 @@ function ra_drop_in()
     self ra_tyr_mark( "placed_above" );
     self ra_tyr_exit( self.ra_tyr_dest, self.ra_tyr_height, self.ra_tyr_angles );
     self.ra_dropping = 0;
-    level.ra_first_landing = 1;
     level.ra_land_t = function_83bf4b34fbbe124b();
     nengine_store_set( "rex_arena", "land_health", self.health );
     nengine_store_set( "rex_arena", "land_eye_height", self function_5255d85caf38b6eb()[ 2 ] - self.origin[ 2 ] );
@@ -1097,7 +1110,6 @@ function ra_tyr_ride( scene, dz, angles, ride_time, fade_time )
     if ( self.origin[ 2 ] < self.ra_tyr_dest[ 2 ] + 512 &&
          self.ra_tyr_mover.origin[ 2 ] > self.ra_tyr_dest[ 2 ] + 1200 )
     {
-        self.ra_tyr_fallback = 1;
         self unlink();
         self function_a544338816001600( self.ra_tyr_mover.origin );
         self playerlinkto( self.ra_tyr_mover );
@@ -1341,7 +1353,6 @@ function ra_tyr_watchdog()
     nengine_store_save( "rex_arena", "runtime" );
     self.ra_dropping = 0;
     self ra_tyr_cleanup();
-    level.ra_first_landing = 1;
     level.ra_land_t = function_83bf4b34fbbe124b();
     nengine_store_set( "rex_arena", "drop", "recovered" );
     nengine_store_set( "rex_arena", "drop_recover", "cleaned_up" );
@@ -1515,7 +1526,6 @@ function ra_sp_roster()
     level.ra_boss_round[ 5 ] = level.ra_quad_round;
     level.ra_boss_done[ 5 ] = 0;
     level.ra_both_zrex = 0;
-    level.ra_cz_zrex = 0;
     // 0.5.82: the round-50 Z-Rex is alive and owes the Golden Armor reward
     level.ra_zr_gold = 0;
     // 0.5.86: the round-75 Guardian is alive and owes the Ultra rarity reward
@@ -2444,7 +2454,11 @@ function ra_boss_spawn( index, origin )
         level.ra_cal_sh = undefined;
         level.ra_cal_mark = 0;
         if ( !istrue( level.ra_cal_reviving ) )
+        {
             level.ra_cal_wd = [];
+            // 1.2.1
+            level.ra_cal_any = undefined;
+        }
         if ( !isdefined( level.ra_cal_late ) )
         {
             level.ra_cal_late = 1;
@@ -2790,21 +2804,32 @@ function ra_boss_damage( params )
             level.ra_cw_key = params.var_e663e01e515b27.var_85d9eda284f364cd;
         if ( isdefined( level.ra_cw_key ) && isdefined( level.ra_cal_wd ) && isdefined( self.var_c1a14ef3b76e22c5 ) )
         {
+            // 1.2.1: a weapon first used after phase 1 (no phase-1 hit of its own) takes the last phase-1 hit
+            // of any weapon, so it gets the later-phase share below too (was about 2 % of its damage)
+            if ( self.var_c1a14ef3b76e22c5 > 1 && !isdefined( level.ra_cal_wd[ level.ra_cw_key ] ) && isdefined( level.ra_cal_any ) )
+                level.ra_cal_wd[ level.ra_cw_key ] = level.ra_cal_any;
             if ( self.var_c1a14ef3b76e22c5 <= 1 )
             {
                 if ( params.var_a87b62c261a8d114 > 0 )
+                {
                     level.ra_cal_wd[ level.ra_cw_key ] = params.var_a87b62c261a8d114;
+                    // 1.2.1: and of any weapon, for weapons first used after phase 1
+                    level.ra_cal_any = params.var_a87b62c261a8d114;
+                }
             }
-            else if ( isdefined( level.ra_cal_wd[ level.ra_cw_key ] ) && params.var_a87b62c261a8d114 * 10 < level.ra_cal_wd[ level.ra_cw_key ] )
+            // 1.1.9: phase 2 gets half of the weapon's phase-1 damage, phase 3 a quarter (user: "caltheris last 2
+            // phases she is taking a lot of dmg", chose "Phase 2 half, phase 3 quarter"); 0.5.22 gave a hit under a
+            // tenth all of it back. A hit the game left above that share stays as it is.
+            else if ( isdefined( level.ra_cal_wd[ level.ra_cw_key ] ) && params.var_a87b62c261a8d114 < level.ra_cal_wd[ level.ra_cw_key ] * ( self.var_c1a14ef3b76e22c5 == 2 ? 0.5 : 0.25 ) )
             {
+                self.ra_cal_in = level.ra_cal_wd[ level.ra_cw_key ] * ( self.var_c1a14ef3b76e22c5 == 2 ? 0.5 : 0.25 );
                 level.ra_cr_n++;
                 if ( level.ra_cr_n == 1 || level.ra_cr_n % 25 == 0 )
                 {
-                    nengine_store_set( "rex_arena", "boss_caltheris_restored", "round " + level.ra_sp_round + ": " + level.ra_cr_n + " hits brought back; last " + params.var_a87b62c261a8d114 + " to " + level.ra_cal_wd[ level.ra_cw_key ] + " in phase " + self.var_c1a14ef3b76e22c5 );
+                    nengine_store_set( "rex_arena", "boss_caltheris_restored", "round " + level.ra_sp_round + ": " + level.ra_cr_n + " hits brought back; last " + params.var_a87b62c261a8d114 + " to " + self.ra_cal_in + " (" + ( self.var_c1a14ef3b76e22c5 == 2 ? "half" : "a quarter" ) + " of its phase-1 " + level.ra_cal_wd[ level.ra_cw_key ] + ") in phase " + self.var_c1a14ef3b76e22c5 );
                     nengine_store_save( "rex_arena", "runtime" );
                 }
-                self.ra_cal_in = level.ra_cal_wd[ level.ra_cw_key ];
-                return level.ra_cal_wd[ level.ra_cw_key ];
+                return self.ra_cal_in;
             }
         }
     }
@@ -3483,7 +3508,12 @@ function ra_warden_end()
     // 0.6.2: the black screen comes down as the vote opens
     if ( !level.ra_we_faded )
         ra_warden_fades();
-    level.ra_we_at = isdefined( level.ra_g_org[ 3 ] ) ? level.ra_g_org[ 3 ] : level.players[ 0 ].origin;
+    // 1.1.4: the arena centre when neither the Weyward's place nor player 0 is known
+    level.ra_we_at = ( 29424, -27424, 2216 );
+    if ( isdefined( level.ra_g_org[ 3 ] ) )
+        level.ra_we_at = level.ra_g_org[ 3 ];
+    else if ( isdefined( level.players ) && level.players.size > 0 && isdefined( level.players[ 0 ] ) )
+        level.ra_we_at = level.players[ 0 ].origin;
     nengine_store_set( "rex_arena", "warden_end", level.ra_we_text + "; vote open" );
     level.ra_we_res = namespace_74b2d1dbce2fe39a::function_3477750f338de598( undefined, &"hash_76ff85bb2057ad7b", 0, 0 );
     nengine_store_set( "rex_arena", "warden_end", level.ra_we_text + "; vote done: " + ( istrue( level.ra_we_res ) ? "everyone left, the match ends" : "someone continues, reward at " + level.ra_we_at ) );
@@ -3994,18 +4024,21 @@ function ra_weyward_crystal_move( crystal, from, far, spot, n )
     crystal dontinterpolate();
     crystal setorigin( crystal.ra_spot );
     wait 1;
-    level.ra_wcm_again = "";
+    // 1.1.4: the note per crystal number; crystals move at the same time
+    if ( !isdefined( level.ra_wcm_ag ) )
+        level.ra_wcm_ag = [];
+    level.ra_wcm_ag[ n ] = "";
     if ( isdefined( crystal ) && isalive( crystal ) && distance( crystal.origin, crystal.ra_spot ) > 300 )
     {
         crystal dontinterpolate();
         crystal setorigin( crystal.ra_spot );
-        level.ra_wcm_again = " (set again)";
+        level.ra_wcm_ag[ n ] = " (set again)";
         wait 1;
     }
     if ( isdefined( crystal ) && isalive( crystal ) )
-        level.ra_wcm_text = "round " + level.ra_sp_round + ": crystal " + n + " from " + from + " (" + far + " from the arena centre) to " + crystal.ra_spot + " (" + crystal.ra_floor + ")" + level.ra_wcm_again + "; then at " + crystal.origin + ", " + int( distance( crystal.origin, crystal.ra_spot ) ) + " from the spot";
+        level.ra_wcm_text = "round " + level.ra_sp_round + ": crystal " + n + " from " + from + " (" + far + " from the arena centre) to " + crystal.ra_spot + " (" + crystal.ra_floor + ")" + level.ra_wcm_ag[ n ] + "; then at " + crystal.origin + ", " + int( distance( crystal.origin, crystal.ra_spot ) ) + " from the spot";
     else
-        level.ra_wcm_text = "round " + level.ra_sp_round + ": crystal " + n + " from " + from + " (" + far + " from the arena centre) to " + spot + level.ra_wcm_again + "; then gone";
+        level.ra_wcm_text = "round " + level.ra_sp_round + ": crystal " + n + " from " + from + " (" + far + " from the arena centre) to " + spot + level.ra_wcm_ag[ n ] + "; then gone";
     nengine_store_set( "rex_arena", "boss_weyward_crystal_moved", level.ra_wcm_text );
     if ( n <= 20 )
         nengine_store_set( "rex_arena", "boss_weyward_crystal_moved_" + n, level.ra_wcm_text );
@@ -5076,6 +5109,28 @@ function ra_boss_drops( index )
     nengine_store_save( "rex_arena", "runtime" );
 }
 
+// 1.1.7: a boss beaten (dead for good, ra_boss_final): 5000 salvage to every player (user: "5k salvage
+// reward for beating each boss"), with the game's own currency call, as its rewards give salvage
+// (core script_3ca070ee1ba8337c function_c7338ab736d78439). Records boss_salvage.
+function ra_boss_salvage( index )
+{
+    level.ra_sv_n = 0;
+    for ( level.ra_sv_i = 0; isdefined( level.var_10f4ff41c4b7f0ac ) && level.ra_sv_i < level.var_10f4ff41c4b7f0ac.size; level.ra_sv_i++ )
+    {
+        if ( isdefined( level.var_10f4ff41c4b7f0ac[ level.ra_sv_i ] ) )
+        {
+            level.var_10f4ff41c4b7f0ac[ level.ra_sv_i ] namespace_189fe7075a0930a5::function_91837b02eb37486e( #"salvage", 5000 );
+            level.ra_sv_n++;
+        }
+    }
+    if ( !isdefined( level.ra_sv_total ) )
+        level.ra_sv_total = 0;
+    level.ra_sv_total = level.ra_sv_total + 5000;
+    level.ra_sv_name = index == 0 ? "Z-Rex" : ( index == 1 ? "the Guardian" : ( index == 2 ? "Caltheris" : "the Weyward" ) );
+    nengine_store_set( "rex_arena", "boss_salvage", "round " + level.ra_sp_round + ": " + level.ra_sv_name + " beaten, 5000 salvage to " + level.ra_sv_n + " players (" + level.ra_sv_total + " each from bosses so far)" );
+    nengine_store_save( "rex_arena", "runtime" );
+}
+
 // 0.5.27: a round-500 boss is dead for good (not made again). When all three
 // are dead the fight summary goes on screen and to the store.
 // 0.7.8: every boss dead for good comes here; it drops Boss Rush's four
@@ -5083,6 +5138,7 @@ function ra_boss_drops( index )
 function ra_boss_final( index )
 {
     ra_boss_drops( index );
+    ra_boss_salvage( index );
     if ( !level.ra_bar_h || !isdefined( level.ra_tr_t0 ) || isdefined( level.ra_tr_end[ index ] ) )
         return;
     level.ra_tr_end[ index ] = function_83bf4b34fbbe124b();
@@ -5513,7 +5569,6 @@ function rx_spawn_rampage( origin, angles )
         if ( !isdefined( level.rx_rp_home ) && !istrue( level.rx_rp.dxd_built ) )
         {
             level.rx_rp_home = level.rx_rp.origin;
-            level.rx_rp_home_angles = level.rx_rp.angles;
         }
         if ( !rx_rampage_move( origin, angles ) )
         {
@@ -6127,146 +6182,6 @@ function rx_tedd_clip_watch()
         level.var_4833eef421ac6267 = undefined;
 }
 
-// 1.0.1: a probe of the Mystery Box lists (user: "i want the warden blige wonder
-// weapon on the box aswell as necrofluid gauntlent and raygun mk1 and 2"; they
-// chose a probe first). Records only; nothing in the box is changed. The box
-// rolls a tier and, on the wonder tier, one item from level.var_8b6bf63f61fe01f9
-// (core function_a1eaa1dc0b25176b); its display is level.var_c94175b5e96b794c.
-// Rex's map file has the lists sat_ww_raygun, sat_ww_raygunmark2 and
-// sat_ww_firefly (Ashes' wonder weapon), loaded here by their asset ids.
-function ra_box_probe()
-{
-    level endon( #"game_ended" );
-    level.ra_bp_wait = 0;
-    while ( level.ra_bp_wait < 240 && ( !isdefined( level.var_c94175b5e96b794c ) || level.var_c94175b5e96b794c.size == 0 ) )
-    {
-        wait 0.5;
-        level.ra_bp_wait++;
-    }
-    wait 2;
-    level.ra_bp_text = "display " + ( isdefined( level.var_c94175b5e96b794c ) ? level.var_c94175b5e96b794c.size : -1 ) + " weapons (waited " + level.ra_bp_wait + " x 0.5 s)";
-    level.ra_bp_text = level.ra_bp_text + "; tier lists: base " + ( isdefined( level.var_54989577c4e434aa ) ? "set" : "none" ) + ", 2 " + ( isdefined( level.var_278a6b84a3269b8c ) ? "set" : "none" ) + ", 3 " + ( isdefined( level.var_b29a644f57572450 ) ? "set" : "none" ) + ", wonder " + ( isdefined( level.var_8b6bf63f61fe01f9 ) ? "set" : "none" ) + ", 5 " + ( isdefined( level.var_ae71d4cfe02b434e ) ? "set" : "none" ) + ", 6 " + ( isdefined( level.var_85de712d04e11e60 ) ? "set" : "none" );
-    level.ra_bp_text = level.ra_bp_text + "; wonder tier off " + ( istrue( level.var_641b7c91f663ea4f ) ? 1 : 0 ) + ", wonder swap " + ( istrue( level.var_20cf5eda0c956d52 ) ? 1 : 0 ) + ", wonder items " + ( isdefined( level.var_c5111f0d24e5789a ) ? level.var_c5111f0d24e5789a.size : -1 ) + "; box list " + ( isdefined( level.var_e28fc9c2ccfdfe06 ) ? "set" : "none" );
-    level.ra_bp_ids = [ %"hash_0a620f3050238966", %"hash_1fec97216ee31e7c", %"hash_3386f9f65fa8f7e7" ];
-    level.ra_bp_names = [ "sat_ww_raygun", "sat_ww_raygunmark2", "sat_ww_firefly" ];
-    level.ra_bp_items = [ %"hash_5ccd4ffef24f2106", %"hash_63a8dbb95fa75efb", %"hash_27bda65984bd2faf", %"hash_613157257e008eff", %"hash_27bda55984bd2dfc", %"hash_0e5db3b642aea010" ];
-    level.ra_bp_letters = [ "A", "B", "C", "D", "E", "F" ];
-    level.ra_bp_which = "not one of the three";
-    if ( isdefined( level.var_8b6bf63f61fe01f9 ) )
-    {
-        if ( function_f20826a3e52aa5cf( level.var_8b6bf63f61fe01f9 ) )
-            level.ra_bp_which = "named " + level.var_8b6bf63f61fe01f9;
-        else
-        {
-            for ( level.ra_bp_i = 0; level.ra_bp_i < 3; level.ra_bp_i++ )
-            {
-                if ( level.var_8b6bf63f61fe01f9 == level.ra_bp_ids[ level.ra_bp_i ] )
-                    level.ra_bp_which = level.ra_bp_names[ level.ra_bp_i ];
-            }
-        }
-    }
-    level.ra_bp_text = level.ra_bp_text + "; Rex's wonder list: " + level.ra_bp_which;
-    for ( level.ra_bp_i = 0; level.ra_bp_i < 3; level.ra_bp_i++ )
-        level.ra_bp_text = level.ra_bp_text + "; " + level.ra_bp_names[ level.ra_bp_i ] + " by name " + ( isdefined( function_6071eb16b74b2e99( level.ra_bp_names[ level.ra_bp_i ] ) ) ? "loads" : "does not load" );
-    nengine_store_set( "rex_arena", "box_probe", level.ra_bp_text );
-    nengine_store_save( "rex_arena", "runtime" );
-    level.ra_bp_wwroots = [];
-    ra_box_probe_list( level.var_8b6bf63f61fe01f9, "rex_wonder", 1 );
-    for ( level.ra_bp_i = 0; level.ra_bp_i < 3; level.ra_bp_i++ )
-        ra_box_probe_list( level.ra_bp_ids[ level.ra_bp_i ], level.ra_bp_names[ level.ra_bp_i ], 0 );
-}
-
-// 1.0.1: one list's items for ra_box_probe (records only).
-function ra_box_probe_list( list, label, rex )
-{
-    level.ra_bq_t = label + ": ";
-    level.ra_bq_b = undefined;
-    if ( isdefined( list ) )
-    {
-        level.ra_bq_b = function_6071eb16b74b2e99( list );
-        if ( !isdefined( level.ra_bq_b ) && function_f20826a3e52aa5cf( list ) )
-            level.ra_bq_b = function_6071eb16b74b2e99( function_99ee3cf75e2291a6( %"hash_1d0fbbe9cb5f4e2a", list ) );
-    }
-    if ( !isdefined( list ) )
-        level.ra_bq_t = level.ra_bq_t + "not set";
-    else if ( !isdefined( level.ra_bq_b ) )
-        level.ra_bq_t = level.ra_bq_t + "does not load";
-    else
-    {
-        level.ra_bq_e = level.ra_bq_b.var_a07f3f0105a769a7;
-        level.ra_bq_n = isdefined( level.ra_bq_e ) ? level.ra_bq_e.size : 0;
-        level.ra_bq_t = level.ra_bq_t + "loads, " + level.ra_bq_n + " items";
-        for ( level.ra_bq_i = 0; level.ra_bq_i < level.ra_bq_n; level.ra_bq_i++ )
-        {
-            level.ra_bq_x = level.ra_bq_e[ level.ra_bq_i ];
-            level.ra_bq_t = level.ra_bq_t + "; #" + level.ra_bq_i + " weight " + ( isdefined( level.ra_bq_x.var_3e117ae0128f626 ) ? level.ra_bq_x.var_3e117ae0128f626 : -1 );
-            if ( !isdefined( level.ra_bq_x.var_f98825c1490f96d0 ) )
-                level.ra_bq_t = level.ra_bq_t + " no item";
-            else
-            {
-                level.ra_bq_k = "unknown item";
-                if ( function_f20826a3e52aa5cf( level.ra_bq_x.var_f98825c1490f96d0 ) )
-                    level.ra_bq_k = "item named " + level.ra_bq_x.var_f98825c1490f96d0;
-                else
-                {
-                    for ( level.ra_bq_j = 0; level.ra_bq_j < 6; level.ra_bq_j++ )
-                    {
-                        if ( level.ra_bq_x.var_f98825c1490f96d0 == level.ra_bp_items[ level.ra_bq_j ] )
-                            level.ra_bq_k = "item " + level.ra_bp_letters[ level.ra_bq_j ];
-                    }
-                }
-                level.ra_bq_t = level.ra_bq_t + " " + level.ra_bq_k;
-                level.ra_bq_ib = function_6071eb16b74b2e99( level.ra_bq_x.var_f98825c1490f96d0 );
-                if ( !isdefined( level.ra_bq_ib ) )
-                    level.ra_bq_t = level.ra_bq_t + " (item does not load)";
-                else if ( !isdefined( level.ra_bq_ib.var_b13646f5585d25f3 ) )
-                    level.ra_bq_t = level.ra_bq_t + " (no weapon)";
-                else
-                {
-                    level.ra_bq_root = function_7f831c4a1e766b8e( level.ra_bq_ib.var_b13646f5585d25f3 );
-                    if ( !isdefined( level.ra_bq_root ) )
-                        level.ra_bq_t = level.ra_bq_t + " (no weapon root)";
-                    else
-                    {
-                        level.ra_bq_t = level.ra_bq_t + ( isdefined( level.var_c94175b5e96b794c ) && isdefined( level.var_c94175b5e96b794c[ level.ra_bq_root ] ) ? " in box display" : " not in box display" );
-                        if ( !isdefined( level.var_d06db1f300d5fe3b ) || !isdefined( level.var_d06db1f300d5fe3b[ level.ra_bq_root ] ) )
-                            level.ra_bq_t = level.ra_bq_t + ", weapon table: no";
-                        else
-                            level.ra_bq_t = level.ra_bq_t + ( istrue( level.var_d06db1f300d5fe3b[ level.ra_bq_root ].var_3e8739d232e1b023 ) ? ", weapon table: wonder" : ", weapon table: yes" );
-                        level.ra_bq_t = level.ra_bq_t + ( isdefined( level.ra_bq_ib.var_7be626458be077cf ) ? ", model" : ", no model" );
-                        if ( function_f20826a3e52aa5cf( level.ra_bq_root ) )
-                            level.ra_bq_t = level.ra_bq_t + ", root " + level.ra_bq_root;
-                        if ( rex )
-                            level.ra_bp_wwroots[ level.ra_bp_wwroots.size ] = level.ra_bq_root;
-                        else
-                        {
-                            for ( level.ra_bq_j = 0; level.ra_bq_j < level.ra_bp_wwroots.size; level.ra_bq_j++ )
-                            {
-                                if ( level.ra_bp_wwroots[ level.ra_bq_j ] == level.ra_bq_root )
-                                    level.ra_bq_t = level.ra_bq_t + ", same weapon as rex_wonder #" + level.ra_bq_j;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        level.ra_bq_s = level.ra_bq_b.var_7ce9e28d27efbfab;
-        if ( isdefined( level.ra_bq_s ) && level.ra_bq_s.size > 0 )
-        {
-            level.ra_bq_t = level.ra_bq_t + "; sub-lists " + level.ra_bq_s.size + ":";
-            for ( level.ra_bq_i = 0; level.ra_bq_i < level.ra_bq_s.size; level.ra_bq_i++ )
-            {
-                if ( isdefined( level.ra_bq_s[ level.ra_bq_i ].var_7d35dc4a083a54c4 ) && function_f20826a3e52aa5cf( level.ra_bq_s[ level.ra_bq_i ].var_7d35dc4a083a54c4 ) )
-                    level.ra_bq_t = level.ra_bq_t + " " + level.ra_bq_s[ level.ra_bq_i ].var_7d35dc4a083a54c4;
-                else
-                    level.ra_bq_t = level.ra_bq_t + " (unnamed)";
-            }
-        }
-    }
-    nengine_store_set( "rex_arena", "box_probe_" + label, level.ra_bq_t );
-    nengine_store_save( "rex_arena", "runtime" );
-}
-
 // 1.1: wonder weapons in the arena box (user: "i want the warden blige wonder
 // weapon on the box aswell as necrofluid gauntlent and raygun mk1 and 2", at
 // Rex's normal wonder weapon rate). The 1.0.1 probe showed Rex's wonder tier list
@@ -6294,6 +6209,16 @@ function ra_box_wonder()
     }
     level.ra_bw_rex = level.var_8b6bf63f61fe01f9;
     ra_box_seen_setup();
+    // 1.1.6: the Blight's item (in Rex's wonder list, neither Ray Gun) and its weapon root (ra_box_holds_blight)
+    level.ra_bw_blight = undefined;
+    for ( level.ra_bw_i = 0; level.ra_bw_i < level.ra_bs_items.size; level.ra_bw_i++ )
+    {
+        if ( !isdefined( level.ra_bw_blight ) && level.ra_bs_items[ level.ra_bw_i ] != %"hash_5ccd4ffef24f2106" && level.ra_bs_items[ level.ra_bw_i ] != %"hash_613157257e008eff" && level.ra_bs_items[ level.ra_bw_i ] != %"hash_0e5db3b642aea010" )
+            level.ra_bw_blight = level.ra_bs_items[ level.ra_bw_i ];
+    }
+    level.ra_bw_broot = undefined;
+    if ( isdefined( level.ra_bw_blight ) && isdefined( function_6071eb16b74b2e99( level.ra_bw_blight ) ) )
+        level.ra_bw_broot = function_6071eb16b74b2e99( level.ra_bw_blight ).var_9b52b5f3085ca117;
     level.ra_bw_ff = undefined;
     level.ra_bw_root = undefined;
     if ( isdefined( function_6071eb16b74b2e99( %"hash_3386f9f65fa8f7e7" ) ) )
@@ -6303,6 +6228,12 @@ function ra_box_wonder()
         level.ra_bw_root = function_7f831c4a1e766b8e( level.ra_bw_ib.var_b13646f5585d25f3 );
     level.ra_bw_rolls = 0;
     level.ra_bw_ffn = 0;
+    // 1.1.5: Wonderbar rolls, and those turned to the Blight
+    level.ra_bw_wbn = 0;
+    level.ra_bw_wbb = 0;
+    // 1.1.6: Wonderbar rolls by a player holding the Blight
+    level.ra_bw_wbh = 0;
+    level.ra_bw_blocked = 0;
     level.ra_bw_off = 0;
     level.ra_bw_added = 0;
     level.ra_bw_text = "Rex's wonder list kept";
@@ -6310,11 +6241,19 @@ function ra_box_wonder()
     {
         namespace_705d991e4db4f3c6::function_46f699d4f5fd8dba( level.ra_bw_ff );
         level.ra_bw_added++;
-        namespace_705d991e4db4f3c6::function_1b154b89e87377fa( &ra_box_wonder_pick );
-        level.ra_bw_text = level.ra_bw_text + "; Gauntlet list loads, added to the box display" + ( isdefined( level.ra_bw_root ) && isdefined( level.var_c94175b5e96b794c[ level.ra_bw_root ] ) ? " (shown)" : " (not shown)" ) + ", roll hook on (1 in 4)";
+        // 1.1.5: first in the box's hook list (the game's hooks, Wonderbar's among them, after it in
+        // their order), so it also runs on Wonderbar spins; the box takes the first list a hook returns
+        level.ra_bw_hooks = level.var_cb8cece2b97f9dc;
+        level.var_cb8cece2b97f9dc = [];
+        level.var_cb8cece2b97f9dc[ 0 ] = &ra_box_wonder_pick;
+        for ( level.ra_bw_i = 0; isdefined( level.ra_bw_hooks ) && level.ra_bw_i < level.ra_bw_hooks.size; level.ra_bw_i++ )
+            level.var_cb8cece2b97f9dc[ level.var_cb8cece2b97f9dc.size ] = level.ra_bw_hooks[ level.ra_bw_i ];
+        level.ra_bw_hooks = undefined;
+        level.ra_bw_text = level.ra_bw_text + "; Gauntlet list loads, added to the box display" + ( isdefined( level.ra_bw_root ) && isdefined( level.var_c94175b5e96b794c[ level.ra_bw_root ] ) ? " (shown)" : " (not shown)" ) + ", roll hook on (1 in 4), first of " + level.var_cb8cece2b97f9dc.size + " hooks";
     }
     else
         level.ra_bw_text = level.ra_bw_text + "; Gauntlet list does not load: only Rex's list";
+    level.ra_bw_text = level.ra_bw_text + "; Blight " + ( isdefined( level.ra_bw_broot ) ? "found" : "not found" );
     level.ra_bw_text = level.ra_bw_text + "; swap was " + ( istrue( level.var_20cf5eda0c956d52 ) ? "on" : "off" );
     nengine_store_set( "rex_arena", "box_wonder", level.ra_bw_text );
     nengine_store_save( "rex_arena", "runtime" );
@@ -6324,14 +6263,14 @@ function ra_box_wonder()
         {
             namespace_705d991e4db4f3c6::function_2e49cd8681e36211( 0 );
             level.ra_bw_off++;
-            nengine_store_set( "rex_arena", "box_wonder_swap", "turned off " + level.ra_bw_off + " times (last in round " + level.ra_sp_round + ")" );
+            nengine_store_set( "rex_arena", "box_wonder_swap", "turned off " + level.ra_bw_off + " times (last in " + ( isdefined( level.ra_sp_round ) ? "round " + level.ra_sp_round : "the match start" ) + ")" );
             nengine_store_save( "rex_arena", "runtime" );
         }
         if ( isdefined( level.ra_bw_ff ) && isdefined( level.ra_bw_root ) && isdefined( level.var_c94175b5e96b794c ) && !isdefined( level.var_c94175b5e96b794c[ level.ra_bw_root ] ) && level.ra_bw_added < 20 )
         {
             namespace_705d991e4db4f3c6::function_46f699d4f5fd8dba( level.ra_bw_ff );
             level.ra_bw_added++;
-            nengine_store_set( "rex_arena", "box_wonder_display", "Gauntlet added again (" + level.ra_bw_added + " in all, last in round " + level.ra_sp_round + ")" );
+            nengine_store_set( "rex_arena", "box_wonder_display", "Gauntlet added again (" + level.ra_bw_added + " in all, last in " + ( isdefined( level.ra_sp_round ) ? "round " + level.ra_sp_round : "the match start" ) + ")" );
             nengine_store_save( "rex_arena", "runtime" );
         }
         wait 1;
@@ -6346,6 +6285,39 @@ function ra_box_wonder_pick( player, a, b )
     if ( !isdefined( level.ra_bw_rex ) || !isdefined( level.ra_bw_ff ) )
         return;
     level.ra_bw_rolls++;
+    // 1.1.5: a Wonderbar roll (Wonderbar's own hook answers it): on 1 in 3 Rex's list is returned with
+    // the Ray Gun and Ray Gun Mark II at their box limit for this roll, so the box's reroll gives the Blight
+    level.ra_bw_wb = isdefined( player ) && isdefined( namespace_72c943209a0510e6::function_bf0a20dea694ba5a( player, a, b ) );
+    if ( level.ra_bw_wb )
+        level.ra_bw_wbn++;
+    // 1.1.6: a player already holding the Blight gets no second one from Wonderbar (user: "so it wont give
+    // u the blige if ur already holding one"): the Blight is at its box limit for this roll, so the box
+    // rerolls it, and the Blight favouring below is skipped (the limit is already set)
+    level.ra_bw_has = level.ra_bw_wb && ra_box_holds_blight( player );
+    if ( level.ra_bw_has && !level.ra_bw_blocked && isdefined( level.var_8d848b3dc37f33a9 ) && isdefined( level.ra_bw_blight ) )
+    {
+        level.ra_bw_blk = [ level.ra_bw_blight ];
+        ra_box_wonder_block();
+        level.ra_bw_wbh++;
+    }
+    if ( level.ra_bw_wb && !level.ra_bw_blocked && isdefined( level.var_8d848b3dc37f33a9 ) && randomint( 3 ) == 0 )
+    {
+        level.var_8b6bf63f61fe01f9 = level.ra_bw_rex;
+        if ( istrue( level.var_20cf5eda0c956d52 ) )
+            namespace_705d991e4db4f3c6::function_2e49cd8681e36211( 0 );
+        level.ra_bw_blk = [ %"hash_5ccd4ffef24f2106", %"hash_613157257e008eff" ];
+        ra_box_wonder_block();
+        level.ra_bw_wbb++;
+        nengine_store_set( "rex_arena", "box_wonder_rolls", level.ra_bw_rolls + " rolls; wonder tier set to the Gauntlet's list on " + level.ra_bw_ffn + ", Rex's on " + ( level.ra_bw_rolls - level.ra_bw_ffn ) + "; Wonderbar " + level.ra_bw_wbn + ", turned to the Blight " + level.ra_bw_wbb + ", already holding it " + level.ra_bw_wbh );
+        if ( isdefined( level.ra_bs_items ) )
+        {
+            if ( isdefined( self ) && isdefined( self.var_37f3a4cd8252c9f0 ) && self.var_37f3a4cd8252c9f0 == player )
+                level thread ra_box_seen_roll( self, 0, 2 );
+            else
+                level.ra_bs_nobox++;
+        }
+        return level.ra_bw_rex;
+    }
     if ( randomint( 4 ) == 0 )
     {
         level.var_8b6bf63f61fe01f9 = level.ra_bw_ff;
@@ -6353,14 +6325,59 @@ function ra_box_wonder_pick( player, a, b )
     }
     else
         level.var_8b6bf63f61fe01f9 = level.ra_bw_rex;
-    nengine_store_set( "rex_arena", "box_wonder_rolls", level.ra_bw_rolls + " rolls; wonder tier set to the Gauntlet's list on " + level.ra_bw_ffn + ", Rex's on " + ( level.ra_bw_rolls - level.ra_bw_ffn ) );
+    nengine_store_set( "rex_arena", "box_wonder_rolls", level.ra_bw_rolls + " rolls; wonder tier set to the Gauntlet's list on " + level.ra_bw_ffn + ", Rex's on " + ( level.ra_bw_rolls - level.ra_bw_ffn ) + "; Wonderbar " + level.ra_bw_wbn + ", turned to the Blight " + level.ra_bw_wbb + ", already holding it " + level.ra_bw_wbh );
     if ( isdefined( level.ra_bs_items ) )
     {
         if ( isdefined( player ) && isdefined( self ) && isdefined( self.var_37f3a4cd8252c9f0 ) && self.var_37f3a4cd8252c9f0 == player )
-            level thread ra_box_seen_roll( self, level.var_8b6bf63f61fe01f9 == level.ra_bw_ff );
+            level thread ra_box_seen_roll( self, level.var_8b6bf63f61fe01f9 == level.ra_bw_ff, ( level.ra_bw_has ? 3 : level.ra_bw_wb ) );
         else
             level.ra_bs_nobox++;
     }
+}
+
+// 1.1.6: the items in level.ra_bw_blk at box limit 0 for this roll (1.1.5's code, from ra_box_wonder_pick);
+// the box rerolls an item at its limit from the roll's list (core function_239d5db0d6aabc4c).
+function ra_box_wonder_block()
+{
+    level.ra_bw_blocked = 1;
+    level.ra_bw_old = [];
+    for ( level.ra_bw_i = 0; level.ra_bw_i < level.ra_bw_blk.size; level.ra_bw_i++ )
+    {
+        level.ra_bw_old[ level.ra_bw_i ] = level.var_8d848b3dc37f33a9[ level.ra_bw_blk[ level.ra_bw_i ] ];
+        level.ra_bw_s = spawnstruct();
+        level.ra_bw_s.var_58d2f0e3d978b425 = 0;
+        level.ra_bw_s.var_33746a1ec9f62e48 = [];
+        level.var_8d848b3dc37f33a9[ level.ra_bw_blk[ level.ra_bw_i ] ] = level.ra_bw_s;
+    }
+    level.ra_bw_s = undefined;
+    level thread ra_box_wonder_unblock();
+}
+
+// 1.1.6: whether player holds the Blight, the box's own test (core function_a8d6931ced6667c5): a weapon in
+// the player's slots or extra slot with the Blight's weapon root.
+function ra_box_holds_blight( player )
+{
+    if ( !isdefined( player ) || !isdefined( level.ra_bw_broot ) )
+        return 0;
+    if ( isdefined( player.var_cc1262e66dbb1c79 ) && player.var_cc1262e66dbb1c79.var_1b57e3034f84a054 == level.ra_bw_broot )
+        return 1;
+    for ( level.ra_bh_i = 0; isdefined( player.var_943efd53792d0c85 ) && level.ra_bh_i < player.var_943efd53792d0c85.size; level.ra_bh_i++ )
+    {
+        if ( isdefined( player.var_943efd53792d0c85[ level.ra_bh_i ] ) && player.var_943efd53792d0c85[ level.ra_bh_i ].var_1b57e3034f84a054 == level.ra_bw_broot )
+            return 1;
+    }
+    return 0;
+}
+
+// 1.1.5: the box's limit table back as it was, one frame after a Wonderbar roll with items at limit 0
+// (the box rolls and rerolls within the frame of the roll hook).
+function ra_box_wonder_unblock()
+{
+    waitframe();
+    for ( level.ra_bw_j = 0; level.ra_bw_j < level.ra_bw_blk.size; level.ra_bw_j++ )
+        level.var_8d848b3dc37f33a9[ level.ra_bw_blk[ level.ra_bw_j ] ] = level.ra_bw_old[ level.ra_bw_j ];
+    level.ra_bw_old = undefined;
+    level.ra_bw_blocked = 0;
 }
 
 // 1.1.1: a record of what each arena box spin gives (user: "are u sure wardem
@@ -6409,7 +6426,9 @@ function ra_box_seen_setup()
 
 // 1.1.1: one box spin for the record (records only). The box rolls its item
 // into box.var_182083fc5337ebe9 right after the roll hook, with no wait.
-function ra_box_seen_roll( box, gauntlet )
+// 1.1.5: wbar 1 = a Wonderbar roll, 2 = a Wonderbar roll turned to the Blight
+// 1.1.6: 3 = a Wonderbar roll by a player already holding the Blight (rerolled away from it)
+function ra_box_seen_roll( box, gauntlet, wbar )
 {
     level endon( #"game_ended" );
     wait 0.1;
@@ -6443,7 +6462,7 @@ function ra_box_seen_roll( box, gauntlet )
             level.ra_bs_t = "a normal weapon";
         }
     }
-    level.ra_bs_t = "spin " + level.ra_bs_spins + " (round " + ( isdefined( level.ra_sp_round ) ? level.ra_sp_round : -1 ) + "): " + level.ra_bs_t + "; wonder tier list this spin: " + ( gauntlet ? "the Gauntlet's" : "Rex's" );
+    level.ra_bs_t = "spin " + level.ra_bs_spins + " (round " + ( isdefined( level.ra_sp_round ) ? level.ra_sp_round : -1 ) + "): " + level.ra_bs_t + "; wonder tier list this spin: " + ( gauntlet ? "the Gauntlet's" : "Rex's" ) + ( wbar == 3 ? "; Wonderbar, already holding the Blight" : ( wbar == 2 ? "; Wonderbar, turned to the Blight" : ( wbar ? "; Wonderbar" : "" ) ) );
     nengine_store_set( "rex_arena", "box_seen_last", level.ra_bs_t );
     if ( level.ra_bs_spins <= 40 )
         nengine_store_set( "rex_arena", "box_seen_" + level.ra_bs_spins, level.ra_bs_t );
@@ -6494,8 +6513,6 @@ function rx_user_machines()
         return;
     if ( !ra_launch_off( "box" ) )
         level thread rx_box_manager();
-    if ( !ra_launch_off( "box_probe" ) )
-        level thread ra_box_probe();
     if ( !ra_launch_off( "box_wonder" ) )
         level thread ra_box_wonder();
     wait 0.25;
@@ -7300,6 +7317,8 @@ function ra_round_select()
     level.ra_rs_gl_n = 0;
     // 1.1.3: and freed (ra_toy_glow_free)
     level.ra_rs_gl_off = 0;
+    // 1.1.4: and freed for players who left (ra_toy_glow_near)
+    level.ra_gn_left = 0;
     level.ra_rs_m = [];
     level.ra_rs_where = "";
     // 0.5.43: the places in DellxCell's dev position log (p1..p6), as the user
@@ -7896,6 +7915,9 @@ function ra_toy_glow_make( pl )
 {
     // 1.1.3: each player's glows apart, so ra_toy_glow_free can free them
     level.ra_tg_e = pl getentitynumber();
+    // 1.1.4: the highest entity number with glows (ra_toy_glow_near frees those of players who left)
+    if ( !isdefined( level.ra_gn_top ) || level.ra_tg_e > level.ra_gn_top )
+        level.ra_gn_top = level.ra_tg_e;
     if ( !isdefined( self.ra_gsp ) )
         self.ra_gsp = [];
     self.ra_gsp[ level.ra_tg_e ] = [];
@@ -8145,21 +8167,6 @@ function ra_round_select_pass()
     ra_popup( "hint", "ROUND " + level.ra_rs_round[ level.ra_rs_near ], level.ra_rs_name[ level.ra_rs_near ] + ( level.ra_rs_free ? " - press Use" : " - boss fight in progress" ) );
 }
 
-// 0.5.51: the pedestals within 300 units (and 150 up or down) of a place whose
-// toys have not risen: their toys rise (ra_round_select_rise).
-function ra_round_select_rise_near( pos )
-{
-    level.ra_rsr_i = 0;
-    while ( level.ra_rsr_i < level.ra_rs_m.size )
-    {
-        level.ra_rsr_m = level.ra_rs_m[ level.ra_rsr_i ];
-        if ( !level.ra_rs_up[ level.ra_rsr_i ] && isdefined( level.ra_rsr_m ) && distance( ( pos[ 0 ], pos[ 1 ], 0 ), ( level.ra_rsr_m.origin[ 0 ], level.ra_rsr_m.origin[ 1 ], 0 ) ) < 300 && pos[ 2 ] - level.ra_rsr_m.origin[ 2 ] < 150 && pos[ 2 ] - level.ra_rsr_m.origin[ 2 ] > -150 )
-            ra_round_select_rise( level.ra_rsr_i );
-        level.ra_rsr_i++;
-    }
-    level.ra_rsr_m = undefined;
-}
-
 // 0.7.4: every pedestal whose toys have not risen: they rise and glow
 // (ra_round_select_rise), wherever the players are.
 function ra_round_select_rise_all()
@@ -8242,6 +8249,7 @@ function ra_toy_rise()
 // player, and all of them when the player is dead, are freed.
 function ra_toy_glow_near()
 {
+    level.ra_gn_seen = [];
     level.ra_gn_pi = 0;
     while ( isdefined( level.players ) && level.ra_gn_pi < level.players.size )
     {
@@ -8250,6 +8258,7 @@ function ra_toy_glow_near()
         if ( !isdefined( level.ra_gn_pl ) || !istrue( level.ra_gn_pl.ra_toy_copied ) )
             continue;
         level.ra_gn_e = level.ra_gn_pl getentitynumber();
+        level.ra_gn_seen[ level.ra_gn_e ] = 1;
         if ( !isdefined( level.ra_gn_pl.ra_gn_k ) )
             level.ra_gn_pl.ra_gn_k = -1;
         // the nearest pedestal within 150; the one already lit stays within 200
@@ -8289,6 +8298,27 @@ function ra_toy_glow_near()
                 level.ra_gn_t ra_toy_glow_make( level.ra_gn_pl );
             else if ( !level.ra_gn_want && level.ra_gn_has )
                 level.ra_gn_t ra_toy_glow_free( level.ra_gn_e );
+        }
+    }
+    // 1.1.4: glows kept for an entity number no player above has now (the player
+    // left, or a new player in that slot has no copies yet) are freed
+    level.ra_gn_j = 0;
+    while ( isdefined( level.ra_gn_top ) && level.ra_gn_j < level.ra_rs_toy_m.size )
+    {
+        level.ra_gn_t = level.ra_rs_toy_m[ level.ra_gn_j ];
+        level.ra_gn_j++;
+        if ( !isdefined( level.ra_gn_t ) || !isdefined( level.ra_gn_t.ra_gsp ) )
+            continue;
+        level.ra_gn_e = 0;
+        while ( level.ra_gn_e <= level.ra_gn_top )
+        {
+            if ( !isdefined( level.ra_gn_seen[ level.ra_gn_e ] ) && isdefined( level.ra_gn_t.ra_gsp[ level.ra_gn_e ] ) && level.ra_gn_t.ra_gsp[ level.ra_gn_e ].size > 0 )
+            {
+                level.ra_gn_left = level.ra_gn_left + level.ra_gn_t.ra_gsp[ level.ra_gn_e ].size;
+                nengine_store_set( "rex_arena", "round_select_glows_left", "glows freed for players who left: " + level.ra_gn_left + " (last: entity " + level.ra_gn_e + ")" );
+                level.ra_gn_t ra_toy_glow_free( level.ra_gn_e );
+            }
+            level.ra_gn_e++;
         }
     }
     level.ra_gn_pl = undefined;
@@ -9586,7 +9616,6 @@ function rx_box_col()
     level.rx_bxc_cand = [];
     level.rx_bxc_pick = undefined;
     nengine_store_save( "rex_arena", "runtime" );
-    level thread rx_box_walk();
 }
 
 // Builds candidate c's copies on the base into level.rx_bxc_made (solid,
@@ -9687,43 +9716,6 @@ function rx_box_col_ok()
         level.rx_bxo_k++;
     }
     return level.rx_bxo_n >= 8;
-}
-
-// Records only. For 10 minutes: player samples inside the platform outline
-// (x from the front edge 0..48, y from the south end 0..120), first 5 spots.
-function rx_box_walk()
-{
-    level endon( #"game_ended" );
-    level.rx_bw_in = 0;
-    level.rx_bw_spots = "";
-    level.rx_bw_tick = 0;
-    while ( level.rx_bw_tick < 6000 )
-    {
-        level.rx_bw_p = 0;
-        while ( isdefined( level.var_10f4ff41c4b7f0ac ) && level.rx_bw_p < level.var_10f4ff41c4b7f0ac.size )
-        {
-            level.rx_bw_pl = level.var_10f4ff41c4b7f0ac[ level.rx_bw_p ];
-            if ( isdefined( level.rx_bw_pl ) && isdefined( level.rx_bw_pl.origin ) && abs( level.rx_bw_pl.origin[ 2 ] - level.rx_bxc_z0 ) < 40 )
-            {
-                level.rx_bw_x = level.rx_bw_pl.origin[ 0 ] - level.rx_bxc_xf;
-                level.rx_bw_y = level.rx_bw_pl.origin[ 1 ] - level.rx_bxc_ys;
-                if ( level.rx_bw_x >= 0 && level.rx_bw_x <= 48 && level.rx_bw_y >= 0 && level.rx_bw_y <= 120 )
-                {
-                    level.rx_bw_in++;
-                    if ( level.rx_bw_in <= 5 )
-                        level.rx_bw_spots = level.rx_bw_spots + " (" + int( level.rx_bw_x ) + "," + int( level.rx_bw_y ) + ")";
-                }
-            }
-            level.rx_bw_p++;
-        }
-        level.rx_bw_tick++;
-        if ( level.rx_bw_tick % 100 == 0 )
-        {
-            nengine_store_set( "rex_arena", "box_walk_inside", level.rx_bw_in + " samples" + level.rx_bw_spots );
-            nengine_store_save( "rex_arena", "runtime" );
-        }
-        wait 0.1;
-    }
 }
 
 // How many copies of length size cover span (1 if one is already as long).
